@@ -31,7 +31,10 @@ const newGroupChat = TryCatch(async (req, res, next) => {
   emitEvent(req, ALERT, allMembers, `Welcome to ${name} group`);
   emitEvent(req, REFETCH_CHATS, members);
 
-  return res.status(201).json({ success: true, message: 'Group created' });
+  return res.status(201).json({
+    success: true,
+    message: 'Group Created',
+  });
 });
 
 const getMyChats = TryCatch(async (req, res, next) => {
@@ -40,17 +43,15 @@ const getMyChats = TryCatch(async (req, res, next) => {
     'name avatar'
   );
 
-  const transformedChats = chats.map((_id, name, members, groupChat) => {
+  const transformedChats = chats.map(({ _id, name, members, groupChat }) => {
     const otherMember = getOtherMember(members, req.user);
 
     return {
       _id,
       groupChat,
       avatar: groupChat
-        ? members.slice(0, 3).map(({ avatar }) => {
-            avatar.url;
-          })
-        : 'otherMember.avatar.url',
+        ? members.slice(0, 3).map(({ avatar }) => avatar.url)
+        : [otherMember.avatar.url],
       name: groupChat ? name : otherMember.name,
       members: members.reduce((prev, curr) => {
         if (curr._id.toString() !== req.user.toString()) {
@@ -61,7 +62,10 @@ const getMyChats = TryCatch(async (req, res, next) => {
     };
   });
 
-  return res.status(200).json({ success: true, transformedChats });
+  return res.status(200).json({
+    success: true,
+    chats: transformedChats,
+  });
 });
 
 const getMyGroups = TryCatch(async (req, res, next) => {
@@ -78,7 +82,10 @@ const getMyGroups = TryCatch(async (req, res, next) => {
     avatar: members.slice(0, 3).map(({ avatar }) => avatar.url),
   }));
 
-  return res.status(200).json({ success: true, groups });
+  return res.status(200).json({
+    success: true,
+    groups,
+  });
 });
 
 const addMembers = TryCatch(async (req, res, next) => {
@@ -92,7 +99,7 @@ const addMembers = TryCatch(async (req, res, next) => {
     return next(new ErrorHandler('This is not a group chat', 400));
 
   if (chat.creator.toString() !== req.user.toString())
-    return next(new ErrorHandler('You are not authorized to add members', 403));
+    return next(new ErrorHandler('You are not allowed to add members', 403));
 
   const allNewMembersPromise = members.map((i) => User.findById(i, 'name'));
 
@@ -104,8 +111,8 @@ const addMembers = TryCatch(async (req, res, next) => {
 
   chat.members.push(...uniqueMembers);
 
-  if (chat.members.length > 200)
-    return next(new ErrorHandler('Members limit reached', 400));
+  if (chat.members.length > 100)
+    return next(new ErrorHandler('Group members limit reached', 400));
 
   await chat.save();
 
@@ -115,18 +122,20 @@ const addMembers = TryCatch(async (req, res, next) => {
     req,
     ALERT,
     chat.members,
-    `${allUsersName} has been added to the group`
+    `${allUsersName} has been added in the group`
   );
 
   emitEvent(req, REFETCH_CHATS, chat.members);
 
-  return res
-    .status(200)
-    .json({ success: true, message: 'Members added successfully' });
+  return res.status(200).json({
+    success: true,
+    message: 'Members added successfully',
+  });
 });
 
 const removeMember = TryCatch(async (req, res, next) => {
   const { userId, chatId } = req.body;
+
   const [chat, userThatWillBeRemoved] = await Promise.all([
     Chat.findById(chatId),
     User.findById(userId, 'name'),
@@ -138,9 +147,7 @@ const removeMember = TryCatch(async (req, res, next) => {
     return next(new ErrorHandler('This is not a group chat', 400));
 
   if (chat.creator.toString() !== req.user.toString())
-    return next(
-      new ErrorHandler('You are not authorized to remove members', 403)
-    );
+    return next(new ErrorHandler('You are not allowed to add members', 403));
 
   if (chat.members.length <= 3)
     return next(new ErrorHandler('Group must have at least 3 members', 400));
@@ -154,15 +161,16 @@ const removeMember = TryCatch(async (req, res, next) => {
   await chat.save();
 
   emitEvent(req, ALERT, chat.members, {
-    message: `User ${userThatWillBeRemoved.name} has been removed from the group`,
+    message: `${userThatWillBeRemoved.name} has been removed from the group`,
     chatId,
   });
 
   emitEvent(req, REFETCH_CHATS, allChatMembers);
 
-  return res
-    .status(200)
-    .json({ success: true, message: 'Member removed successfully' });
+  return res.status(200).json({
+    success: true,
+    message: 'Member removed successfully',
+  });
 });
 
 const leaveGroup = TryCatch(async (req, res, next) => {
@@ -179,15 +187,12 @@ const leaveGroup = TryCatch(async (req, res, next) => {
     (member) => member.toString() !== req.user.toString()
   );
 
-  if (remainingMembers.length < 3) {
+  if (remainingMembers.length < 3)
     return next(new ErrorHandler('Group must have at least 3 members', 400));
-  }
 
   if (chat.creator.toString() === req.user.toString()) {
-    const randomEl = Math.floor(Math.random() * remainingMembers.length);
-
-    const newCreator = remainingMembers[randomEl];
-
+    const randomElement = Math.floor(Math.random() * remainingMembers.length);
+    const newCreator = remainingMembers[randomElement];
     chat.creator = newCreator;
   }
 
@@ -198,9 +203,15 @@ const leaveGroup = TryCatch(async (req, res, next) => {
     chat.save(),
   ]);
 
-  emitEvent(req, ALERT, chat.members, {chatId, message: `${user.name} has left the group`});
+  emitEvent(req, ALERT, chat.members, {
+    chatId,
+    message: `User ${user.name} has left the group`,
+  });
 
-  return res.status(200).json({ success: true, message: 'You left the group' });
+  return res.status(200).json({
+    success: true,
+    message: 'Leave Group Successfully',
+  });
 });
 
 const sendAttachments = TryCatch(async (req, res, next) => {
@@ -209,12 +220,12 @@ const sendAttachments = TryCatch(async (req, res, next) => {
   const files = req.files || [];
 
   if (files.length < 1)
-    return next(new ErrorHandler('Please provide attachments', 400));
+    return next(new ErrorHandler('Please Upload Attachments', 400));
 
   if (files.length > 5)
-    return next(new ErrorHandler('5 se jyada nhi krne ka', 400));
+    return next(new ErrorHandler("Files Can't be more than 5", 400));
 
-  const [chat, user] = await Promise.all([
+  const [chat, me] = await Promise.all([
     Chat.findById(chatId),
     User.findById(req.user, 'name'),
   ]);
@@ -224,21 +235,21 @@ const sendAttachments = TryCatch(async (req, res, next) => {
   if (files.length < 1)
     return next(new ErrorHandler('Please provide attachments', 400));
 
-  //UPLOAD FILES TO CLOUDINARY
+  //   Upload files here
   const attachments = await uploadFilesToCloudinary(files);
 
   const messageForDB = {
     content: '',
     attachments,
-    sender: user._id,
+    sender: me._id,
     chat: chatId,
   };
 
   const messageForRealTime = {
     ...messageForDB,
     sender: {
-      _id: user._id,
-      name: user.name,
+      _id: me._id,
+      name: me.name,
     },
   };
 
@@ -251,7 +262,10 @@ const sendAttachments = TryCatch(async (req, res, next) => {
 
   emitEvent(req, NEW_MESSAGE_ALERT, chat.members, { chatId });
 
-  return res.status(200).json({ success: true, message });
+  return res.status(200).json({
+    success: true,
+    message,
+  });
 });
 
 const getChatDetails = TryCatch(async (req, res, next) => {
@@ -268,13 +282,18 @@ const getChatDetails = TryCatch(async (req, res, next) => {
       avatar: avatar.url,
     }));
 
-    return res.status(200).json({ success: true, chat });
+    return res.status(200).json({
+      success: true,
+      chat,
+    });
   } else {
     const chat = await Chat.findById(req.params.id);
-
     if (!chat) return next(new ErrorHandler('Chat not found', 404));
 
-    return res.status(200).json({ success: true, chat });
+    return res.status(200).json({
+      success: true,
+      chat,
+    });
   }
 });
 
@@ -286,13 +305,12 @@ const renameGroup = TryCatch(async (req, res, next) => {
 
   if (!chat) return next(new ErrorHandler('Chat not found', 404));
 
-  if (!chat.groupChat) {
-    return next(new ErrorHandler('This is not group chat', 400));
-  }
+  if (!chat.groupChat)
+    return next(new ErrorHandler('This is not a group chat', 400));
 
   if (chat.creator.toString() !== req.user.toString())
     return next(
-      new ErrorHandler('You are not authorized to rename the group', 403)
+      new ErrorHandler('You are not allowed to rename the group', 403)
     );
 
   chat.name = name;
@@ -301,7 +319,10 @@ const renameGroup = TryCatch(async (req, res, next) => {
 
   emitEvent(req, REFETCH_CHATS, chat.members);
 
-  return res.status(200).json({ success: true, message: 'Group renamed' });
+  return res.status(200).json({
+    success: true,
+    message: 'Group renamed successfully',
+  });
 });
 
 const deleteChat = TryCatch(async (req, res, next) => {
@@ -315,25 +336,27 @@ const deleteChat = TryCatch(async (req, res, next) => {
 
   if (chat.groupChat && chat.creator.toString() !== req.user.toString())
     return next(
-      new ErrorHandler('You are not authorized to delete the group', 403)
+      new ErrorHandler('You are not allowed to delete the group', 403)
     );
 
-  if (!chat.groupChat && !members.includes(req.user.toString())) {
-    return next(new ErrorHandler('You are not a member of this chat', 403));
+  if (!chat.groupChat && !chat.members.includes(req.user.toString())) {
+    return next(
+      new ErrorHandler('You are not allowed to delete the chat', 403)
+    );
   }
 
-  const messageWithAttachments = await Message.find({
+  //   Here we have to dete All Messages as well as attachments or files from cloudinary
+
+  const messagesWithAttachments = await Message.find({
     chat: chatId,
     attachments: { $exists: true, $ne: [] },
   });
 
   const public_ids = [];
 
-  messageWithAttachments.forEach(({ attachments }) => {
-    attachments.forEach(({ public_id }) => {
-      public_ids.push(public_id);
-    });
-  });
+  messagesWithAttachments.forEach(({ attachments }) =>
+    attachments.forEach(({ public_id }) => public_ids.push(public_id))
+  );
 
   await Promise.all([
     deleteFilesFromCloudinary(public_ids),
@@ -343,12 +366,14 @@ const deleteChat = TryCatch(async (req, res, next) => {
 
   emitEvent(req, REFETCH_CHATS, members);
 
-  return res.status(200).json({ success: true, message: 'Chat deleted' });
+  return res.status(200).json({
+    success: true,
+    message: 'Chat deleted successfully',
+  });
 });
 
 const getMessages = TryCatch(async (req, res, next) => {
   const chatId = req.params.id;
-
   const { page = 1 } = req.query;
 
   const resultPerPage = 20;
@@ -359,7 +384,9 @@ const getMessages = TryCatch(async (req, res, next) => {
   if (!chat) return next(new ErrorHandler('Chat not found', 404));
 
   if (!chat.members.includes(req.user.toString()))
-    return next(new ErrorHandler('You are not a member of this chat', 403));
+    return next(
+      new ErrorHandler('You are not allowed to access this chat', 403)
+    );
 
   const [messages, totalMessagesCount] = await Promise.all([
     Message.find({ chat: chatId })
@@ -371,11 +398,13 @@ const getMessages = TryCatch(async (req, res, next) => {
     Message.countDocuments({ chat: chatId }),
   ]);
 
-  const totalPages = Math.ceil(totalMessagesCount / resultPerPage);
+  const totalPages = Math.ceil(totalMessagesCount / resultPerPage) || 0;
 
-  return res
-    .status(200)
-    .json({ success: true, messages: messages.reverse(), totalPages });
+  return res.status(200).json({
+    success: true,
+    messages: messages.reverse(),
+    totalPages,
+  });
 });
 
 export {

@@ -1,32 +1,50 @@
+import jwt from 'jsonwebtoken';
 import { TryCatch } from '../middlewares/error.js';
 import { Chat } from '../models/chat.js';
 import { Message } from '../models/message.js';
 import { User } from '../models/user.js';
-import jwt from 'jsonwebtoken';
+import { ErrorHandler } from '../utils/utility.js';
 import { cookieOptions } from '../utils/features.js';
 import { adminSecretKey } from '../app.js';
 
 const adminLogin = TryCatch(async (req, res, next) => {
   const { secretKey } = req.body;
 
-  const isMatch = secretKey === adminSecretKey;
+  const isMatched = secretKey === adminSecretKey;
 
-  if (!isMatch) {
-    return next(new Error('Invalid Secret Key', 401));
-  }
+  if (!isMatched) return next(new ErrorHandler('Invalid Admin Key', 401));
 
   const token = jwt.sign(secretKey, process.env.JWT_SECRET);
 
   return res
     .status(200)
-    .cookie('anushk-admin-token', token, {
+    .cookie('chattu-admin-token', token, {
       ...cookieOptions,
       maxAge: 1000 * 60 * 15,
     })
     .json({
       success: true,
-      message: 'Authenticated Succesfully',
+      message: 'Authenticated Successfully, Welcome BOSS',
     });
+});
+
+const adminLogout = TryCatch(async (req, res, next) => {
+  return res
+    .status(200)
+    .cookie('chattu-admin-token', '', {
+      ...cookieOptions,
+      maxAge: 0,
+    })
+    .json({
+      success: true,
+      message: 'Logged Out Successfully',
+    });
+});
+
+const getAdminData = TryCatch(async (req, res, next) => {
+  return res.status(200).json({
+    admin: true,
+  });
 });
 
 const allUsers = TryCatch(async (req, res) => {
@@ -51,7 +69,7 @@ const allUsers = TryCatch(async (req, res) => {
   );
 
   return res.status(200).json({
-    success: true,
+    status: 'success',
     users: transformedUsers,
   });
 });
@@ -61,7 +79,7 @@ const allChats = TryCatch(async (req, res) => {
     .populate('members', 'name avatar')
     .populate('creator', 'name avatar');
 
-  const tranformedChats = await Promise.all(
+  const transformedChats = await Promise.all(
     chats.map(async ({ members, _id, groupChat, name, creator }) => {
       const totalMessages = await Message.countDocuments({ chat: _id });
 
@@ -86,8 +104,8 @@ const allChats = TryCatch(async (req, res) => {
   );
 
   return res.status(200).json({
-    success: true,
-    tranformedChats,
+    status: 'success',
+    chats: transformedChats,
   });
 });
 
@@ -97,24 +115,24 @@ const allMessages = TryCatch(async (req, res) => {
     .populate('chat', 'groupChat');
 
   const transformedMessages = messages.map(
-    ({ _id, sender, chat, content, createdAt, attachments }) => ({
+    ({ content, attachments, _id, sender, createdAt, chat }) => ({
       _id,
       attachments,
+      content,
+      createdAt,
+      chat: chat._id,
+      groupChat: chat.groupChat,
       sender: {
         _id: sender._id,
         name: sender.name,
         avatar: sender.avatar.url,
       },
-      chat: chat._id,
-      groupChat: chat.groupChat,
-      content,
-      createdAt,
     })
   );
 
   return res.status(200).json({
     success: true,
-    transformedMessages,
+    messages: transformedMessages,
   });
 });
 
@@ -129,19 +147,23 @@ const getDashboardStats = TryCatch(async (req, res) => {
 
   const today = new Date();
 
-  const lastWeek = new Date();
-  lastWeek.setDate(lastWeek.getDate() - 7);
+  const last7Days = new Date();
+  last7Days.setDate(last7Days.getDate() - 7);
 
-  const lastWeekMessages = await Message.find({
-    createdAt: { $gte: lastWeek, $lte: today },
+  const last7DaysMessages = await Message.find({
+    createdAt: {
+      $gte: last7Days,
+      $lte: today,
+    },
   }).select('createdAt');
 
   const messages = new Array(7).fill(0);
+  const dayInMiliseconds = 1000 * 60 * 60 * 24;
 
-  lastWeekMessages.forEach((message) => {
-    const index = Math.floor(
-      (today.getTime() - message.createdAt.getTime()) / (1000 * 60 * 60 * 24)
-    );
+  last7DaysMessages.forEach((message) => {
+    const indexApprox =
+      (today.getTime() - message.createdAt.getTime()) / dayInMiliseconds;
+    const index = Math.floor(indexApprox);
 
     messages[6 - index]++;
   });
@@ -153,25 +175,10 @@ const getDashboardStats = TryCatch(async (req, res) => {
     totalChatsCount,
     messagesChart: messages,
   };
+
   return res.status(200).json({
     success: true,
     stats,
-  });
-});
-
-const adminLogout = TryCatch(async (req, res, next) => {
-  return res
-    .status(200)
-    .cookie('anushk-admin-token', '', {
-      ...cookieOptions,
-      maxAge: 0,
-    })
-    .json({ success: true, message: 'Logged Out Successfully' });
-});
-
-const getAdminData = TryCatch(async (req, res, next) => {
-  return res.status(200).json({
-    admin: true,
   });
 });
 

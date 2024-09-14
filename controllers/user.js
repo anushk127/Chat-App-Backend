@@ -35,7 +35,7 @@ const newUser = TryCatch(async (req, res, next) => {
     avatar,
   });
 
-  sendToken(user, 201, 'User created successfully', res);
+  sendToken(res, user, 201, 'User created successfully');
 });
 
 const login = TryCatch(async (req, res, next) => {
@@ -52,7 +52,7 @@ const login = TryCatch(async (req, res, next) => {
     return next(new ErrorHandler('Invalid Username or Password', 404));
   }
 
-  sendToken(user, 200, `Welcome back, ${user.name}`, res);
+  sendToken(res, user, 200, `Welcome back, ${user.name}`);
 });
 
 const getMyProfile = async (req, res, next) => {
