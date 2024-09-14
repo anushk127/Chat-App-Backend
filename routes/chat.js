@@ -45,7 +45,7 @@ app.put(
   removeMember
 );
 
-app.delete('/leave/:id', leaveGroup);
+app.delete('/leave/:id', chatIdValidator(), validateHandler, leaveGroup);
 
 app.post(
   '/message',

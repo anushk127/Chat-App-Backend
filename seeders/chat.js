@@ -50,17 +50,17 @@ const createGroupChats = async (numChats) => {
 
       const chat = Chat.create({
         groupChat: true,
-        name: faker.lorem.word(1),
+        name: faker.lorem.words(1),
         members,
         creator: members[0],
       });
+      chatsPromise.push(chat);
     }
 
     await Promise.all(chatsPromise);
-    console.log('Chats created successfully');
+
     process.exit();
   } catch (error) {
-    console.error(error);
     process.exit(1);
   }
 };
@@ -86,15 +86,14 @@ const createMessages = async (numMessages) => {
     }
 
     await Promise.all(messagesPromise);
-    console.log('Messages created successfully');
+
     process.exit();
   } catch (error) {
-    console.error(error);
     process.exit(1);
   }
 };
 
-const createMessagesInAChat = async (numMessages, chatId) => {
+const createMessagesInAChat = async (chatId, numMessages) => {
   try {
     const users = await User.find().select('_id');
 
@@ -113,17 +112,16 @@ const createMessagesInAChat = async (numMessages, chatId) => {
     }
 
     await Promise.all(messagesPromise);
-    console.log('Messages created successfully');
+
     process.exit();
   } catch (error) {
-    console.error(error);
     process.exit(1);
   }
 };
 
 export {
-  createSingleChats,
   createGroupChats,
   createMessages,
   createMessagesInAChat,
+  createSingleChats,
 };

@@ -1,6 +1,6 @@
 import express from 'express';
 import {
-  acceptRequest,
+  acceptFriendRequest,
   getMyFriends,
   getMyNotifications,
   getMyProfile,
@@ -8,13 +8,13 @@ import {
   logout,
   newUser,
   searchUser,
-  sendRequest,
+  sendFriendRequest,
 } from '../controllers/user.js';
 import {
   acceptRequestValidator,
   loginValidator,
   registerValidator,
-  sendRequestValdiator,
+  sendRequestValidator,
   validateHandler,
 } from '../lib/validators.js';
 import { isAuthenticated } from '../middlewares/auth.js';
@@ -35,13 +35,18 @@ app.get('/logout', logout);
 
 app.get('/search', searchUser);
 
-app.put('/sendrequest', sendRequestValdiator(), validateHandler, sendRequest);
+app.put(
+  '/sendrequest',
+  sendRequestValidator(),
+  validateHandler,
+  sendFriendRequest
+);
 
 app.put(
   '/acceptrequest',
   acceptRequestValidator(),
   validateHandler,
-  acceptRequest
+  acceptFriendRequest
 );
 
 app.get('/notifications', getMyNotifications);

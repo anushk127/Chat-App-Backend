@@ -1,10 +1,11 @@
 import jwt from 'jsonwebtoken';
 import { ErrorHandler } from '../utils/utility.js';
 import { adminSecretKey } from '../app.js';
+import { TryCatch } from './error.js';
 import { ANUSHK_TOKEN } from '../constants/config.js';
 import { User } from '../models/user.js';
 
-const isAuthenticated = async (req, res, next) => {
+const isAuthenticated = TryCatch(async (req, res, next) => {
   const token = req.cookies[ANUSHK_TOKEN];
 
   if (!token) {
@@ -15,7 +16,7 @@ const isAuthenticated = async (req, res, next) => {
   req.user = decodedData._id;
 
   next();
-};
+});
 
 const admin = async (req, res, next) => {
   const token = req.cookies['anushk-admin-token'];

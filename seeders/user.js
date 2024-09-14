@@ -18,10 +18,9 @@ const createUser = async (numUsers) => {
       usersPromise.push(tempUser);
     }
     await Promise.all(usersPromise);
-    console.log('Users created successfully', numUsers);
+
     process.exit(1);
   } catch (error) {
-    console.error(error);
     process.exit(1);
   }
 };
